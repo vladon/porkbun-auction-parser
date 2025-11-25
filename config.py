@@ -55,3 +55,11 @@ CSV_HEADERS = [
     'revenue',
     'visitors'
 ]
+
+# Progress bar settings
+PROGRESS_BAR_WIDTH = 50
+PROGRESS_UPDATE_INTERVAL = 10  # Update progress every N domains
+AUTO_FLUSH_INTERVAL = 100  # Auto-flush CSV every N domains
+
+# State saving settings
+STATE_FILE = "scraping_state.json"

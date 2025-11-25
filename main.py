@@ -10,6 +10,7 @@ from datetime import datetime
 from scraper import PorkbunScraper
 from csv_writer import CSVWriter
 from config import SEARCH_PARAMS
+from progress_utils import AutoFlushWriter
 
 def print_banner():
     """Print the application banner"""

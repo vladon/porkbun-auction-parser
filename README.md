@@ -126,6 +126,21 @@ Here are some examples of how you can use the search features:
    - This will show highest bid domains first
 This significantly speeds up the scraping process while maintaining rate limiting per thread.
 
+### Progress Bar and Auto-Flush Features
+
+The scraper now includes enhanced user feedback and data safety features:
+
+- **Real-time Progress Bar**: Shows current scraping progress with percentage and ETA
+- **Auto-Flush to Disk**: Automatically saves data to disk at intervals to prevent data loss
+- **State Management**: Saves scraping state for resumption after interruption
+- **Configurable Intervals**: Progress updates and auto-flush intervals are configurable
+
+These features ensure:
+- Better visibility into scraping progress
+- Data safety with periodic disk writes
+- Ability to resume interrupted scraping sessions
+- Reduced risk of data loss from crashes or interruptions
+
 ## Output
 
 The scraper creates a CSV file named `porkbun_auctions.csv` with the following columns:
