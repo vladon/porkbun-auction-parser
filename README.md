@@ -1,0 +1,147 @@
+# Porkbun Auction Parser
+
+A Python web scraper that extracts all domain auction data from [porkbun.com/auctions](https://porkbun.com/auctions) and saves it to a CSV file for easy analysis.
+
+## Features
+
+- Scrapes all auction pages (300+ pages with 286,000+ domains)
+- Extracts complete domain information:
+  - Domain name
+  - Top-level domain (TLD)
+  - Time left in auction
+  - Starting price
+  - Current bid
+  - Number of bids
+  - Domain age
+  - Revenue data
+  - Visitor statistics
+- Rate limiting to avoid being blocked
+- Error handling and retry mechanisms
+- Progress tracking and statistics
+- CSV output for easy spreadsheet viewing
+- Test mode for validation
+
+## Installation
+
+1. Clone or download this repository
+2. Install the required dependencies:
+
+```bash
+pip install -r requirements.txt
+```
+
+## Usage
+
+### Basic Usage
+
+Run the scraper with the following command:
+
+```bash
+python main.py
+```
+
+The script will:
+1. Validate that all required packages are installed
+2. Ask if you want to run a test first (recommended)
+3. Scrape all auction pages with rate limiting
+4. Save data to `porkbun_auctions.csv`
+5. Validate the output file
+
+### Advanced Options
+
+#### Limit Pages for Testing
+
+If you want to test with a limited number of pages:
+
+```bash
+python main.py
+# When prompted, enter the number of pages to scrape
+```
+
+#### Skip Testing
+
+If you want to go directly to full scraping:
+
+```bash
+python main.py
+# When prompted for test, enter 'n'
+```
+
+## Output
+
+The scraper creates a CSV file named `porkbun_auctions.csv` with the following columns:
+
+- `domain`: The full domain name
+- `tld`: Top-level domain (e.g., com, org, net)
+- `time_left`: Time remaining in the auction
+- `starting_price`: Initial auction price
+- `current_bid`: Current highest bid
+- `bids_count`: Number of bids placed
+- `domain_age`: Age of the domain
+- `revenue`: Revenue data (if available)
+- `visitors`: Visitor statistics (if available)
+
+## Configuration
+
+You can modify the scraping behavior by editing `config.py`:
+
+- `REQUEST_DELAY_MIN/MAX`: Adjust delay between requests (1-3 seconds default)
+- `MAX_RETRIES`: Number of retry attempts for failed requests
+- `OUTPUT_FILE`: Change the output filename
+- `MAX_PAGES_TO_PROCESS`: Safety limit for maximum pages
+
+## Rate Limiting
+
+The scraper implements rate limiting to avoid being blocked:
+- Random delays between 1-3 seconds per request
+- Retry mechanism for failed requests
+- Proper browser headers to mimic legitimate traffic
+
+## Performance
+
+- **Expected duration**: Several hours for full scraping (due to rate limiting)
+- **Data volume**: ~286,000+ domains across 300+ pages
+- **File size**: Approximately 10-20MB CSV file
+
+## Error Handling
+
+The scraper includes comprehensive error handling:
+- Network timeouts and connection errors
+- HTML structure changes
+- Rate limiting detection
+- Incomplete data handling
+- Graceful interruption with Ctrl+C
+
+## Troubleshooting
+
+### Common Issues
+
+1. **Missing packages**: Run `pip install -r requirements.txt`
+2. **Connection errors**: Check internet connection and try again
+3. **Rate limiting**: The scraper will automatically retry after delays
+4. **Interruption**: If interrupted, the CSV file will contain data up to that point
+
+### Resume Functionality
+
+If the scraper is interrupted, you can:
+1. Check the existing CSV file for data collected so far
+2. Run the scraper again (it will append to existing file)
+3. Use page limiting to continue from where you left off
+
+## Legal Considerations
+
+This scraper is for educational and research purposes. Please:
+- Respect the website's terms of service
+- Use reasonable rate limiting
+- Don't overload the server with excessive requests
+- Consider the impact on the website's resources
+
+## Requirements
+
+- Python 3.6 or higher
+- Internet connection
+- Required packages (see requirements.txt)
+
+## License
+
+This project is for educational purposes. Use responsibly and in accordance with the target website's terms of service.
