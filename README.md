@@ -15,11 +15,20 @@ A Python web scraper that extracts all domain auction data from [porkbun.com/auc
   - Domain age
   - Revenue data
   - Visitor statistics
+- Advanced search and filtering capabilities:
+  - Search by domain name pattern (q= parameter)
+  - Filter by TLD (com, org, net, etc.)
+  - Filter by price range (minimum/maximum price)
+  - Filter by minimum number of bids
+  - Sort by various fields (domain, price, bids, age, etc.)
+  - Sort direction (ascending/descending)
+- Configurable page limits for testing
 - Rate limiting to avoid being blocked
 - Error handling and retry mechanisms
 - Progress tracking and statistics
 - CSV output for easy spreadsheet viewing
 - Test mode for validation
+- Multithreading support for faster scraping
 
 ## Installation
 
@@ -67,6 +76,56 @@ python main.py
 # When prompted for test, enter 'n'
 ```
 
+### Multithreaded Scraping (Faster)
+
+For faster scraping with multithreading (10 parallel workers):
+
+```bash
+python run_full_scraping.py
+```
+
+
+#### Search and Filtering
+
+The scraper now supports advanced search and filtering capabilities:
+
+- **Search Query**: Search for specific domain patterns using the `q=` parameter
+- **TLD Filter**: Filter results by top-level domain (com, org, net, etc.)
+- **Price Range**: Set minimum and maximum price filters
+- **Bid Filter**: Filter by minimum number of bids
+- **Sorting**: Sort results by various fields (domain, price, bids, age, etc.)
+- **Page Limits**: Limit scraping to specific number of pages for testing
+
+When you run the scraper, you'll be prompted to enter these parameters:
+
+```bash
+python main.py
+# Follow the interactive prompts to set search criteria
+```
+
+#### Search Examples
+
+Here are some examples of how you can use the search features:
+
+1. **Search for specific domains**:
+   - Search query: `test`
+   - This will find all domains containing "test"
+
+2. **Filter by TLD**:
+   - TLD filter: `com`
+   - This will only show .com domains
+
+3. **Price range filtering**:
+   - Minimum price: `100`
+   - Maximum price: `1000`
+   - This will show domains with bids between $100 and $1000
+
+4. **Sort by current bid (descending)**:
+   - Sort field: `5` (currentBid)
+   - Sort direction: `desc`
+   - This will show highest bid domains first
+This significantly speeds up the scraping process while maintaining rate limiting per thread.
+
 ## Output
 
 The scraper creates a CSV file named `porkbun_auctions.csv` with the following columns:
@@ -94,6 +153,8 @@ You can modify the scraping behavior by editing `config.py`:
 
 The scraper implements rate limiting to avoid being blocked:
 - Random delays between 1-3 seconds per request
+
+- **Multithreaded version**: 5-10x faster with 10 parallel workers
 - Retry mechanism for failed requests
 - Proper browser headers to mimic legitimate traffic
 

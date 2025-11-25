@@ -1,49 +1,132 @@
 #!/usr/bin/env python3
 """
-Full scraping script for Porkbun Auction Parser
-Runs the complete scraping process for all auction pages
+Run full scraping of Porkbun auction pages with multithreading
 """
 
-from scraper import PorkbunScraper
-from csv_writer import CSVWriter
+import sys
 import os
+from datetime import datetime
+from scraper_mt import PorkbunScraper
+from csv_writer import CSVWriter
+from config import SEARCH_PARAMS
 
-def run_full_scraping():
-    """Run the full scraping process for all pages"""
+def print_banner():
+    """Print application banner"""
     print("=" * 60)
-    print("    Running Full Porkbun Auction Scraping")
+    print("    Porkbun Auction Parser - Multithreaded Edition")
+    print("    Scraping all domain auction data from porkbun.com")
     print("=" * 60)
+    print()
+
+def get_search_parameters():
+    """Get search parameters from user input"""
+    print("\n" + "=" * 40)
+    print("SEARCH PARAMETERS (optional)")
+    print("=" * 40)
+    print("Leave blank to skip any parameter")
     
-    # Initialize components
-    scraper = PorkbunScraper()
+    params = {}
     
-    # Check if CSV file already exists
-    csv_filename = "porkbun_auctions.csv"
-    if os.path.exists(csv_filename):
-        print(f"⚠ CSV file {csv_filename} already exists.")
-        print("Data will be appended to existing file.")
+    # Search query
+    search_query = input("Enter search query (domain name pattern): ").strip()
+    if search_query:
+        params['q'] = search_query
+    
+    # TLD filter
+    tld = input("Filter by TLD (e.g., com, org, net): ").strip()
+    if tld:
+        params['tld'] = tld
+    
+    # Price range
+    min_price = input("Minimum price (leave blank for no minimum): ").strip()
+    if min_price:
+        params['min_price'] = min_price
         
-        # Show current file size
-        file_size = os.path.getsize(csv_filename)
-        print(f"Current file size: {file_size:,} bytes")
+    max_price = input("Maximum price (leave blank for no maximum): ").strip()
+    if max_price:
+        params['max_price'] = max_price
+    
+    # Minimum bids
+    min_bids = input("Minimum number of bids (leave blank for no minimum): ").strip()
+    if min_bids:
+        params['min_bids'] = min_bids
+    
+    # Sort options
+    print("\nSort options:")
+    print("1. domain")
+    print("2. tldName") 
+    print("3. endTime")
+    print("4. startPrice")
+    print("5. currentBid")
+    print("6. bids")
+    print("7. domainAge")
+    print("8. revenue")
+    print("9. visitors")
+    
+    sort_choice = input("Choose sort field (1-9, default: domain): ").strip()
+    sort_fields = {
+        '1': 'domain', '2': 'tldName', '3': 'endTime',
+        '4': 'startPrice', '5': 'currentBid', '6': 'bids',
+        '7': 'domainAge', '8': 'revenue', '9': 'visitors'
+    }
+    if sort_choice in sort_fields:
+        params['sortName'] = sort_fields[sort_choice]
+    
+    sort_dir = input("Sort direction (asc/desc, default: asc): ").strip().lower()
+    if sort_dir in ['desc', 'd']:
+        params['sortDirection'] = 'descending'
+    
+    return params
+
+def validate_environment():
+    """Validate that the environment is set up correctly"""
+    try:
+        import requests
+        import bs4
+        print("✓ All required packages are installed")
+        return True
+    except ImportError as e:
+        print(f"✗ Missing required package: {e}")
+        print("Please run: pip install -r requirements.txt")
+        return False
+
+def main():
+    """Main execution function"""
+    print_banner()
+    
+    # Validate environment
+    if not validate_environment():
+        sys.exit(1)
+    
+    # Get search parameters
+    search_params = get_search_parameters()
+    
+    # Ask for page limit
+    limit_pages = input("\nLimit number of pages? (enter number or press Enter for all pages): ").strip()
+    max_pages = None
+    if limit_pages and limit_pages.isdigit():
+        max_pages = int(limit_pages)
+        print(f"Limiting scraping to {max_pages} pages")
+    
+    # Initialize components with multithreading and search parameters
+    scraper = PorkbunScraper(max_workers=10, max_pages=max_pages, **search_params)
+    csv_writer = CSVWriter()
     
     try:
         # Open CSV file
-        with CSVWriter() as csv_writer:
-            print("\nStarting full scraping process...")
-            print("This will take several hours due to rate limiting.")
-            print("Press Ctrl+C to stop at any time.")
-            print()
+        with csv_writer:
+            print("Starting full scraping with multithreading...")
+            print(f"Start time: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}")
             
             # Scrape all pages
-            all_domains, total_domains = scraper.scrape_all_pages()
+            all_domains, total_domains = scraper.scrape_all_pages(max_workers=10)
             
+            # Write all data to CSV
             if all_domains:
-                # Write all data to CSV
                 success_count = csv_writer.write_multiple_domains(all_domains)
                 print(f"\n✓ Successfully wrote {success_count} domains to CSV")
                 
-                # Show final statistics
+                # Show statistics
                 stats = scraper.get_scraping_stats()
                 print(f"\nFinal Statistics:")
                 print(f"  Total domains scraped: {stats['total_domains_scraped']}")
@@ -54,13 +137,6 @@ def run_full_scraping():
                     completion_rate = (stats['total_domains_scraped'] / total_domains) * 100
                     print(f"  Completion rate: {completion_rate:.2f}%")
                     
-                # Validate output file
-                final_file_size = os.path.getsize(csv_filename)
-                print(f"\nOutput file: {csv_filename}")
-                print(f"Final file size: {final_file_size:,} bytes")
-                print(f"File size increase: {final_file_size - file_size:,} bytes" if 'file_size' in locals() else f"Final file size: {final_file_size:,} bytes")
-                
-                return True
             else:
                 print("✗ No domains were scraped")
                 return False
@@ -74,11 +150,15 @@ def run_full_scraping():
     except Exception as e:
         print(f"\n✗ Error during scraping: {e}")
         return False
+    
+    print(f"\nEnd time: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}")
+    return True
 
 if __name__ == "__main__":
-    success = run_full_scraping()
+    success = main()
     if success:
-        print("\n✓ Scraping completed successfully!")
-        print("You can now analyze the data in porkbun_auctions.csv")
+        print(f"\n✓ Multithreaded scraping completed successfully!")
+        print(f"✓ Data saved to: {csv_writer.filename}")
     else:
-        print("\n✗ Scraping encountered errors or was interrupted")
+        print("\n✗ Scraping encountered errors")
+        sys.exit(1)

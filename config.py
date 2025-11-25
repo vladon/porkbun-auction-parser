@@ -6,6 +6,21 @@ BASE_URL = "https://porkbun.com/auctions"
 # Output CSV file name
 OUTPUT_FILE = "porkbun_auctions.csv"
 
+# Search parameters
+SEARCH_QUERY = ""  # Empty string means no search filter (scrape all domains)
+MAX_PAGES_LIMIT = None  # None means no limit (scrape all available pages)
+
+# Available search form parameters (can be extended as needed)
+SEARCH_PARAMS = {
+    'q': '',  # Search query for domain names
+    'tld': '',  # Filter by TLD
+    'min_price': '',  # Minimum price filter
+    'max_price': '',  # Maximum price filter
+    'min_bids': '',  # Minimum number of bids
+    'sortName': 'domain',  # Sort field (domain, tldName, endTime, startPrice, currentBid, bids, domainAge, revenue, visitors)
+    'sortDirection': 'ascending'  # Sort direction (ascending, descending)
+}
+
 # Request settings
 REQUEST_DELAY_MIN = 1.0  # Minimum delay between requests in seconds
 REQUEST_DELAY_MAX = 3.0  # Maximum delay between requests in seconds
