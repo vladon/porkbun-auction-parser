@@ -69,7 +69,7 @@ class PorkbunScraper:
             domain_cell = cells[0].find('a')
             domain = domain_cell.text.strip() if domain_cell else cells[0].text.strip()
             
-            # Extract TLD from the TLD column (2nd column)
+            # Extract TLD from TLD column (2nd column)
             tld = cells[1].text.strip()
             
             time_left = cells[2].text.strip()  # Time Left is 3rd column
@@ -113,7 +113,7 @@ class PorkbunScraper:
             
             for row in rows:
                 # Skip header row and rows without enough cells
-                if row.find('th') or len(row.find_all('td')) < 9:
+                if row.find('th') or len(row.find_all('td')) < 10:
                     continue
                     
                 domain_data = self._extract_domain_data_from_row(row)
@@ -136,7 +136,7 @@ class PorkbunScraper:
                     return int(match.group(1))
         except Exception as e:
             print(f"Error extracting total domains count: {e}")
-        return None
+            return None
         
     def _rate_limit_delay(self):
         """Implement rate limiting with random delay"""
@@ -164,6 +164,10 @@ class PorkbunScraper:
         else:
             return BASE_URL
     
+    def _scrape_page_with_threading(self, offset):
+        """Scrape a single page with threading support"""
+        return self.scrape_page(offset)
+        
     def scrape_page(self, offset=0):
         """Scrape a single page of auction results"""
         url = self._build_url(offset)
@@ -188,75 +192,80 @@ class PorkbunScraper:
             if total_domains:
                 print(f"Total domains found: {total_domains}")
                 
-        # Update counters
-        self.total_pages_scraped += 1
-        self.total_domains_scraped += len(domains)
+        # Update counters with thread safety
+        with self.lock:
+            self.total_pages_scraped += 1
+            self.total_domains_scraped += len(domains)
         
         return domains, total_domains
         
-    def scrape_all_pages(self, max_pages=None):
-        """Scrape all auction pages"""
-        # Determine the maximum number of pages to scrape
+    def scrape_all_pages(self, max_pages=None, max_workers=5):
+        """Scrape all auction pages with multithreading"""
+        all_domains = []
+        total_domains = None
+        page_count = 0
+        
+        # Determine maximum number of pages to scrape
         if max_pages is not None:
             max_pages = min(max_pages, MAX_PAGES_TO_PROCESS)
         elif self.max_pages_limit is not None:
             max_pages = min(self.max_pages_limit, MAX_PAGES_TO_PROCESS)
         else:
-            max_pages = MAX_PAGES_TO_PROCESS
-            
-        all_domains = []
-        total_domains = None
-        current_offset = 0
-        page_count = 0
+            # First, get the total count to determine pages needed
+            print("Getting total domain count...")
+            _, total_count = self.scrape_page(0)
+            if total_count is not None:
+                total_domains = total_count
+                max_pages = min((total_count + DOMAINS_PER_PAGE - 1) // DOMAINS_PER_PAGE, MAX_PAGES_TO_PROCESS)
+                print(f"Total domains to scrape: {total_domains}")
+                print(f"Estimated pages to scrape: {max_pages}")
+            else:
+                max_pages = MAX_PAGES_TO_PROCESS
         
         # Show search parameters if any
         if any(self.search_params.values()):
             active_params = {k: v for k, v in self.search_params.items() if v}
             print(f"Search parameters: {active_params}")
         
-        print("Starting to scrape Porkbun auction pages...")
+        print(f"Starting to scrape Porkbun auction pages with {max_workers} workers...")
         
-        while page_count < max_pages:
-            # Scrape current page
-            domains, total_count = self.scrape_page(current_offset)
+        # Use ThreadPoolExecutor for parallel scraping
+        with ThreadPoolExecutor(max_workers=max_workers) as executor:
+            # Submit all page scraping tasks
+            future_to_offset = {}
+            offsets = list(range(0, max_pages * DOMAINS_PER_PAGE, DOMAINS_PER_PAGE))
             
-            if domains is None:
-                print("Failed to scrape page. Stopping.")
-                break
-                
-            if not domains:
-                print("No more domains found. Stopping.")
-                break
-                
-            all_domains.extend(domains)
-            page_count += 1
+            print(f"Submitting {len(offsets)} pages for parallel scraping...")
             
-            # Set total domains count from first page
-            if total_count is not None:
-                total_domains = total_count
-                estimated_pages = (total_domains + DOMAINS_PER_PAGE - 1) // DOMAINS_PER_PAGE
-                print(f"Estimated total pages to scrape: {estimated_pages}")
+            for i, offset in enumerate(offsets):
+                future = executor.submit(self._scrape_page_with_threading, offset)
+                future_to_offset[future] = offset
                 
-            # Progress update
-            print(f"Page {page_count} completed: {len(domains)} domains scraped")
-            print(f"Total domains scraped so far: {self.total_domains_scraped}")
+            # Collect results as they complete
+            completed_count = 0
+            for future in as_completed(future_to_offset.keys()):
+                try:
+                    domains, _ = future.result()
+                    if domains:
+                        # Add page offset to each domain for sorting
+                        for domain in domains:
+                            domain['_page_offset'] = offset
+                        all_domains.extend(domains)
+                        if total_domains is None and _ is not None:
+                            total_domains = _
+                        print(f"Page {completed_count + 1} (offset {future_to_offset[future]}) completed: {len(domains)} domains")
+                        completed_count += 1
+                except Exception as e:
+                    print(f"Error scraping page {future_to_offset[future]}: {e}")
+                    with self.lock:
+                        self.error_count += 1
+                    
+            # Sort domains by original page order
+            all_domains.sort(key=lambda x: x.get('_page_offset', 0))
             
-            # Check if we've scraped all domains
-            if total_domains and self.total_domains_scraped >= total_domains:
-                print("All domains have been scraped.")
-                break
-                
-            # Move to next page
-            current_offset += DOMAINS_PER_PAGE
-            
-            # Rate limiting
-            if page_count < max_pages:  # Don't delay after the last page
-                delay = self._rate_limit_delay()
-                print(f"Waiting {delay:.2f} seconds before next request...")
-                
-        print(f"\nScraping completed!")
-        print(f"Total pages scraped: {page_count}")
-        print(f"Total domains scraped: {self.total_domains_scraped}")
+        print(f"\nParallel scraping completed!")
+        print(f"Total pages processed: {completed_count}")
+        print(f"Total domains scraped: {len(all_domains)}")
         print(f"Total errors encountered: {self.error_count}")
         
         return all_domains, total_domains

@@ -9,6 +9,7 @@ import os
 from datetime import datetime
 from scraper import PorkbunScraper
 from csv_writer import CSVWriter
+from config import SEARCH_PARAMS
 
 def print_banner():
     """Print the application banner"""
@@ -123,6 +124,66 @@ def run_full_scraping(scraper, csv_writer, max_pages=None):
     print(f"\nEnd time: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}")
     return True
 
+def get_search_parameters():
+    """Get search parameters from user input"""
+    print("\n" + "=" * 40)
+    print("SEARCH PARAMETERS (optional)")
+    print("=" * 40)
+    print("Leave blank to skip any parameter")
+    
+    params = {}
+    
+    # Search query
+    search_query = input("Enter search query (domain name pattern): ").strip()
+    if search_query:
+        params['q'] = search_query
+    
+    # TLD filter
+    tld = input("Filter by TLD (e.g., com, org, net): ").strip()
+    if tld:
+        params['tld'] = tld
+    
+    # Price range
+    min_price = input("Minimum price (leave blank for no minimum): ").strip()
+    if min_price:
+        params['min_price'] = min_price
+        
+    max_price = input("Maximum price (leave blank for no maximum): ").strip()
+    if max_price:
+        params['max_price'] = max_price
+    
+    # Minimum bids
+    min_bids = input("Minimum number of bids (leave blank for no minimum): ").strip()
+    if min_bids:
+        params['min_bids'] = min_bids
+    
+    # Sort options
+    print("\nSort options:")
+    print("1. domain")
+    print("2. tldName")
+    print("3. endTime")
+    print("4. startPrice")
+    print("5. currentBid")
+    print("6. bids")
+    print("7. domainAge")
+    print("8. revenue")
+    print("9. visitors")
+    
+    sort_choice = input("Choose sort field (1-9, default: domain): ").strip()
+    sort_fields = {
+        '1': 'domain', '2': 'tldName', '3': 'endTime',
+        '4': 'startPrice', '5': 'currentBid', '6': 'bids',
+        '7': 'domainAge', '8': 'revenue', '9': 'visitors'
+    }
+    if sort_choice in sort_fields:
+        params['sortName'] = sort_fields[sort_choice]
+    
+    sort_dir = input("Sort direction (asc/desc, default: asc): ").strip().lower()
+    if sort_dir in ['desc', 'd']:
+        params['sortDirection'] = 'descending'
+    
+    return params
+
 def validate_output(filename):
     """Validate the output CSV file"""
     print("\n" + "=" * 40)
@@ -171,8 +232,18 @@ def main():
     if not validate_environment():
         sys.exit(1)
     
-    # Initialize components
-    scraper = PorkbunScraper()
+    # Get search parameters
+    search_params = get_search_parameters()
+    
+    # Ask for page limit
+    limit_pages = input("\nLimit number of pages? (enter number or press Enter for all pages): ").strip()
+    max_pages = None
+    if limit_pages and limit_pages.isdigit():
+        max_pages = int(limit_pages)
+        print(f"Limiting scraping to {max_pages} pages")
+    
+    # Initialize components with search parameters
+    scraper = PorkbunScraper(max_pages=max_pages, **search_params)
     csv_writer = CSVWriter()
     
     try:
@@ -194,15 +265,8 @@ def main():
                     print("Scraping cancelled by user.")
                     return
                     
-                # Reset scraper stats for full run
-                scraper = PorkbunScraper()
-            
-            # Ask if user wants to limit pages for testing
-            limit_pages = input("\nLimit number of pages? (enter number or press Enter for all pages): ").strip()
-            max_pages = None
-            if limit_pages and limit_pages.isdigit():
-                max_pages = int(limit_pages)
-                print(f"Limiting scraping to {max_pages} pages")
+                # Reset scraper stats for full run (keep same parameters)
+                scraper = PorkbunScraper(max_pages=max_pages, **search_params)
             
             # Run full scraping
             if run_full_scraping(scraper, csv_writer, max_pages):
