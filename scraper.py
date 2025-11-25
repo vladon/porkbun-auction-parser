@@ -9,9 +9,11 @@ from urllib.parse import urljoin
 from config import (
     BASE_URL, HEADERS, REQUEST_DELAY_MIN, REQUEST_DELAY_MAX,
     MAX_RETRIES, RETRY_DELAY, DOMAINS_PER_PAGE, MAX_PAGES_TO_PROCESS,
-    SEARCH_PARAMS, SEARCH_QUERY, MAX_PAGES_LIMIT
+    SEARCH_PARAMS, SEARCH_QUERY, MAX_PAGES_LIMIT,
+    PROGRESS_BAR_WIDTH, PROGRESS_UPDATE_INTERVAL, AUTO_FLUSH_INTERVAL, STATE_FILE
 )
 from urllib.parse import urlencode
+from progress_utils import ProgressBar, StateManager, AutoFlushWriter
 
 class PorkbunScraper:
     def __init__(self, max_workers=5, search_query=None, max_pages=None, **search_params):
@@ -38,6 +40,10 @@ class PorkbunScraper:
         # Set the search query if provided
         if self.search_query:
             self.search_params['q'] = self.search_query
+        # Initialize progress and state management
+        self.progress_bar = None
+        self.state_manager = StateManager(STATE_FILE)
+        self.auto_flush_writer = None
         
     def _make_request(self, url, retry_count=0):
         """Make HTTP request with retry logic"""
@@ -237,9 +243,16 @@ class PorkbunScraper:
                 estimated_pages = (total_domains + DOMAINS_PER_PAGE - 1) // DOMAINS_PER_PAGE
                 print(f"Estimated total pages to scrape: {estimated_pages}")
                 
-            # Progress update
+                # Initialize progress bar after we know the total
+                if self.progress_bar is None and total_domains:
+                    self.progress_bar = ProgressBar(total=total_domains, width=PROGRESS_BAR_WIDTH, update_interval=PROGRESS_UPDATE_INTERVAL)
+                    self.progress_bar.start()
+            
+            # Progress update (only if progress bar is initialized)
+            if self.progress_bar is not None:
+                self.progress_bar.update(self.total_domains_scraped, total=total_domains)
+            
             print(f"Page {page_count} completed: {len(domains)} domains scraped")
-            print(f"Total domains scraped so far: {self.total_domains_scraped}")
             
             # Check if we've scraped all domains
             if total_domains and self.total_domains_scraped >= total_domains:
@@ -258,6 +271,18 @@ class PorkbunScraper:
         print(f"Total pages scraped: {page_count}")
         print(f"Total domains scraped: {self.total_domains_scraped}")
         print(f"Total errors encountered: {self.error_count}")
+        
+        # Save state for resumption
+        self.state_manager.save_state(
+            last_offset=current_offset,
+            total_pages_scraped=page_count,
+            total_domains_scraped=self.total_domains_scraped,
+            search_params=self.search_params
+        )
+        
+        # Complete progress bar
+        if self.progress_bar is not None:
+            self.progress_bar.finish()
         
         return all_domains, total_domains
         

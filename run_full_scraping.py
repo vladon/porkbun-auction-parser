@@ -9,6 +9,7 @@ from datetime import datetime
 from scraper_mt import PorkbunScraper
 from csv_writer import CSVWriter
 from config import SEARCH_PARAMS
+from progress_utils import AutoFlushWriter
 
 def print_banner():
     """Print application banner"""
@@ -119,7 +120,7 @@ def main():
             print(f"Start time: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}")
             
             # Scrape all pages
-            all_domains, total_domains = scraper.scrape_all_pages(max_workers=10)
+            all_domains, total_domains = scraper.scrape_all_pages(max_workers=10, csv_writer=csv_writer)
             
             # Write all data to CSV
             if all_domains:
