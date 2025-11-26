@@ -244,15 +244,19 @@ class PorkbunScraper:
                 print(f"Estimated total pages to scrape: {estimated_pages}")
                 
                 # Initialize progress bar after we know the total
+                # Calculate actual total that will be scraped based on max_pages limit
                 if self.progress_bar is None and total_domains:
-                    self.progress_bar = ProgressBar(total=total_domains, width=PROGRESS_BAR_WIDTH, update_interval=PROGRESS_UPDATE_INTERVAL)
+                    # If we're limiting pages, calculate the actual total we'll scrape
+                    actual_total = min(max_pages * DOMAINS_PER_PAGE, total_domains)
+                    self.progress_bar = ProgressBar(total=actual_total, width=PROGRESS_BAR_WIDTH, update_interval=PROGRESS_UPDATE_INTERVAL)
                     self.progress_bar.start()
             
-            # Progress update (only if progress bar is initialized)
+            # Print page completion first
+            print(f"Page {page_count} completed: {len(domains)} domains scraped")
+            
+            # Then update progress bar
             if self.progress_bar is not None:
                 self.progress_bar.update(self.total_domains_scraped, total=total_domains)
-            
-            print(f"Page {page_count} completed: {len(domains)} domains scraped")
             
             # Check if we've scraped all domains
             if total_domains and self.total_domains_scraped >= total_domains:
@@ -266,6 +270,7 @@ class PorkbunScraper:
             if page_count < max_pages:  # Don't delay after the last page
                 delay = self._rate_limit_delay()
                 print(f"Waiting {delay:.2f} seconds before next request...")
+                # Progress bar will be redrawn on next iteration, no need to redraw here
                 
         print(f"\nScraping completed!")
         print(f"Total pages scraped: {page_count}")

@@ -30,7 +30,7 @@ class ProgressBar:
         if self.total == 0:
             return
             
-        percentage = min(100, (self.current * 100) // self.total)
+        percentage = min(100, int((self.current * 100) / self.total))
         filled_width = (self.width * percentage) // 100
         bar = '=' * filled_width + '-' * (self.width - filled_width)
         
@@ -43,7 +43,8 @@ class ProgressBar:
         else:
             eta = ""
             
-        sys.stdout.write(f'\r[{bar}] {percentage:3d}% ({self.current}/{self.total}) {eta}')
+        # Clear the entire line and write new content
+        sys.stdout.write(f'\r[{bar}] {percentage:3d}% ({self.current}/{self.total}) {eta}' + ' ' * 20)  # Add extra spaces to clear any remaining text
         sys.stdout.flush()
         
     def start(self):
